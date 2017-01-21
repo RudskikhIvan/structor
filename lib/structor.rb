@@ -1,0 +1,3 @@
+module Structor
+  # Your code goes here...
+end
