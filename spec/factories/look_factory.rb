@@ -1,7 +1,7 @@
 FactoryGirl.define do
   factory :look do
     name { FFaker::Lorem.word.downcase }
-    name { FFaker::Lorem.paragraph }
+    description { FFaker::Lorem.paragraph }
     user { FactoryGirl.build(:user) }
     products { FactoryGirl.build_list(:product, rand(2..3)) }
   end

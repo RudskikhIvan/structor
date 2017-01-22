@@ -1,4 +1,5 @@
 require "structor/performer"
+require "structor/preloader"
 
 module Structor
   module ActiveRecordQueringExtension

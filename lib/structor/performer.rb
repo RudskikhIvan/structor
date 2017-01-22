@@ -20,7 +20,7 @@ module Structor
     private
 
     def load_result
-      column_names = prepare_column_names(options)
+      column_names = prepare_column_names
 
       relation = self.relation.spawn
       if column_names.present?
@@ -31,7 +31,7 @@ module Structor
       klass.connection.select_all(relation.arel, nil, bound_attributes)
     end
 
-    def prepare_column_names(options)
+    def prepare_column_names
       column_names = nil
       if only = options[:only]
         column_names = Array(only).map(&:to_s)
@@ -62,19 +62,29 @@ module Structor
           hash[k] = type.deserialize(v)
         end
       end
-      apply_includes(hashes, result) if options[:include].present?
+      apply_includes(hashes) if options[:include].present?
       apply_methods(hashes) if options[:methods].present?
       apply_procs(hashes) if options[:procs].present?
       hashes
     end
 
     def result_to_structs(result)
-      struct = Struct.new(*(result.columns + (options[:methods] || []) + (options[:procs].try(:keys) || [])).map(&:to_sym))
+      struct = struct_class(result)
       structs = result.cast_values(klass.attribute_types).map{|attrs| struct.new(*attrs)}
-      apply_includes(structs, result) if options[:include].present?
+      apply_includes(structs) if options[:include].present?
       apply_methods(structs) if options[:methods].present?
       apply_procs(structs) if options[:procs].present?
       structs
+    end
+
+    def struct_class(result)
+      columns = result.columns
+      columns += options[:methods] if options[:methods].present?
+      columns += options[:procs].keys if options[:procs].present?
+      if options[:include].present?
+        columns += Array.wrap(options[:include]).map{|assoc| assoc.is_a?(Hash) ? assoc.keys.first : assoc}
+      end
+      Struct.new(*columns.map(&:to_sym).uniq)
     end
 
     def apply_methods(items)
@@ -89,8 +99,8 @@ module Structor
       end
     end
 
-    def apply_includes(items, result)
-      StructPreloader.new(klass, options[:include], items, result).preload
+    def apply_includes(items)
+      Preloader.new(klass, options[:include], items).preload
     end
   end
 end

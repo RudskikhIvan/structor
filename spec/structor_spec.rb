@@ -1,5 +1,5 @@
 require_relative './spec_helper'
-describe 'StructToHash' do
+describe 'Without Associations' do
 
   describe 'as_hashes' do
 
@@ -12,12 +12,7 @@ describe 'StructToHash' do
       hashes = User.as_hashes
       expect(hashes.size).to eq(3)
       expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all have_key('id')
-      expect(hashes).to all have_key('first_name')
-      expect(hashes).to all have_key('last_name')
-      expect(hashes).to all have_key('email')
-      expect(hashes).to all have_key('created_at')
-      expect(hashes).to all have_key('updated_at')
+      expect(hashes).to all have_keys('id', 'first_name', 'last_name', 'email', 'created_at', 'updated_at')
     end
 
     it 'loads only selected fields' do
@@ -49,6 +44,7 @@ describe 'StructToHash' do
       expect(User).to_not receive(:instantiate)
       hashes = User.as_hashes(only: %i[id first_name last_name],
                               procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}})
+      expect(hashes.size).to eq(3)
       expect(hashes).to all a_kind_of(Hash)
       expect(hashes).to all have_key('full_name')
       hashes.each do |hash|
@@ -59,6 +55,7 @@ describe 'StructToHash' do
     it 'select field with sql alias' do
       @users = create_list :user, 3
       hashes = User.as_hashes(only: [:id, :first_name, :last_name, "first_name || ' ' || last_name as full_name"])
+      expect(hashes.size).to eq(3)
       expect(hashes).to all a_kind_of(Hash)
       expect(hashes).to all have_key('full_name')
       hashes.each do |hash|
@@ -69,14 +66,13 @@ describe 'StructToHash' do
     it 'returns hashes with correct type of values' do
       @users = create_list :user, 3
       hashes = User.as_hashes(only: [:id, :first_name, :created_at])
+      expect(hashes.size).to eq(3)
       expect(hashes).to all match({
         'id' => a_kind_of(Integer),
         'first_name' => a_kind_of(String),
         'created_at' => a_kind_of(Time)
       })
     end
-
-
   end
 
   describe 'as_structs' do

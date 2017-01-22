@@ -33,7 +33,7 @@ ActiveRecord::Schema.define do
 
   create_table :looks do |t|
     t.string   :name
-    t.belongs_to :user_id
+    t.belongs_to :user
     t.text     :description
     t.datetime :created_at, null: false
     t.datetime :updated_at, null: false
