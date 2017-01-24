@@ -1,197 +1,287 @@
 require_relative './spec_helper'
-describe 'With the belongs_to associtation' do
+describe 'With the belongs to associtation' do
 
   describe 'as_hashes' do
 
-    it 'loads all fields with empty options' do
-      @looks = create_list :look, 3
-      expect(Look).to_not receive(:instantiate)
-      expect(User).to_not receive(:instantiate)
-      hashes = Look.as_hashes(include: :user)
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all have_keys(*%w[id name user_id description created_at updated_at])
-      expect(hashes).to all include('user' => {
-        'id' => a_kind_of(Integer),
-        'first_name' => a_kind_of(String),
-        'last_name' => a_kind_of(String),
-        'email' => a_kind_of(String),
-        'created_at' => a_kind_of(Time),
-        'updated_at' => a_kind_of(Time)
-      })
-    end
+    describe 'without options' do
+      before :each do
+        @looks = create_list :look, 3
+      end
 
-    it 'loads association correctly' do
-      @looks = create_list :look, 3
-      hashes = Look.as_hashes(include: :user)
-      @looks.zip(hashes) do |look, hash|
-        expect(look.id).to eq(hash['id'])
-        expect(look.user_id).to eq(hash['user']['id'])
+      it 'does not instantiate models' do
+        expect(Look).to_not receive(:instantiate)
+        expect(User).to_not receive(:instantiate)
+        expect(Look.as_hashes(include: :user).size).to eq(3)
+      end
+
+      it 'returns hashes with all keys' do
+        hashes = Look.as_hashes(include: :user)
+        expect(hashes).to all have_keys('id', 'name', 'description', 'user', 'created_at', 'updated_at')
+        expect(hashes.map{|h| h['user']}).to all have_keys('id', 'first_name', 'last_name', 'email', 'created_at', 'updated_at')
+      end
+
+      it 'returns hashes with correct values' do
+        Look.includes(:user).all.zip(Look.as_hashes(include: :user)) do |look, hash|
+          expect(look.attributes).to eq(hash.except('user'))
+          expect(look.user.attributes).to eq(hash['user'])
+        end
       end
     end
 
-    it 'loads only selected fields' do
-      @looks = create_list :look, 3
-      hashes = Look.as_hashes(only: %i[id name], include: {user: {only: %i[id first_name created_at]}})
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all match({
-        'id' => a_kind_of(Integer),
-        'name' => a_kind_of(String),
-        'user_id' => a_kind_of(Integer),
-        'user' => match({
+    describe 'with only option' do
+      before :each do
+        @looks = create_list :look, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(Look).to_not receive(:instantiate)
+        expect(User).to_not receive(:instantiate)
+        expect(Look.as_hashes(include: {user: {only: %i[first_name last_name]}}).size).to eq(3)
+      end
+
+      it 'returns hashes with selected keys' do
+        hashes = Look.as_hashes(include: {user: {only: %i[id first_name]}})
+        expect(hashes).to all have_keys('id', 'name', 'description', 'user', 'created_at', 'updated_at')
+        expect(hashes.map{|h| h['user']}).to all match({
           'id' => a_kind_of(Integer),
-          'first_name' => a_kind_of(String),
-          'created_at' => a_kind_of(Time)
+          'first_name' => a_kind_of(String)
         })
-      })
+      end
+
+      it 'returns hashes with correct values' do
+        hashes = Look.as_hashes(include: {user: {only: %i[id first_name created_at]}})
+        Look.includes(:user).all.zip(hashes) do |look, hash|
+          expect(look.attributes).to eq(hash.except('user'))
+          expect(look.user.attributes.slice(*%w[id first_name created_at])).to eq(hash['user'])
+        end
+      end
     end
 
-    it 'loads without excepted fields' do
-      @looks = create_list :look, 3
-      hashes = Look.as_hashes(except: %i[created_at updated_at], include: {user: {except: %i[email created_at updated_at]}})
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all match({
-        'id' => a_kind_of(Integer),
-        'name' => a_kind_of(String),
-        'user_id' => a_kind_of(Integer),
-        'description' => a_kind_of(String),
-        'user' => match({
-          'id' => a_kind_of(Integer),
-          'first_name' => a_kind_of(String),
-          'last_name' => a_kind_of(String)
+    describe 'with except option' do
+      before :each do
+        @looks = create_list :look, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(Look).to_not receive(:instantiate)
+        expect(Look.as_hashes(include: {user: {except: %i[first_name last_name]}}).size).to eq(3)
+      end
+
+      it 'returns hashes without excepted keys' do
+        hashes = Look.as_hashes(include: {user: {except: %i[email created_at updated_at]}})
+        expect(hashes).to all have_keys('id', 'name', 'description', 'user', 'created_at', 'updated_at')
+        expect(hashes.map{|h| h['user']}).to all match({
+           'id' => a_kind_of(Integer),
+           'first_name' => a_kind_of(String),
+           'last_name' => a_kind_of(String)
         })
-      })
-    end
+      end
 
-    it 'applies procs' do
-      @looks = create_list :look, 3
-      hashes = Look.as_hashes(include: {
-        user: {procs: {full_name: ->(h){ h.values_at('first_name', 'last_name').join(' ') }}}
-      })
-      hashes.each do |hash|
-        expect(hash['user']['full_name']).to eq hash['user'].values_at('first_name', 'last_name').join(' ')
+      it 'returns hashes with correct values' do
+        hashes = Look.as_hashes(include: {user: {except: %i[first_name last_name updated_at]}})
+        Look.includes(:user).all.zip(hashes) do |look, hash|
+          expect(look.attributes).to eq(hash.except('user'))
+          expect(look.user.attributes.slice(*%w[id email created_at])).to eq(hash['user'])
+        end
       end
     end
 
-    it 'select field with sql alias' do
-      @looks = create_list :look, 3
-      hashes = Look.as_hashes(include: {user: {only: [:id, :first_name, :last_name, "first_name || ' ' || last_name as full_name"]}})
-      expect(hashes.size).to eq(3)
-      hashes.each do |hash|
-        expect(hash['user']['full_name']).to eq("#{hash['user'].values_at('first_name','last_name').join(' ')}")
+    describe 'with proc option' do
+      before :each do
+        @looks = create_list :look, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(Look).to_not receive(:instantiate)
+        expect(Look.as_hashes(include: {user: {procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}}}}).size).to eq(3)
+      end
+
+      it 'returns hashes with virtual key' do
+        hashes = Look.as_hashes(include: {user: {procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}}}})
+        expect(hashes).to all have_keys('id', 'name', 'description', 'user', 'created_at', 'updated_at')
+        expect(hashes.map{|h| h['user']}).to all have_keys('id', 'first_name', 'last_name', 'full_name')
+      end
+
+      it 'returns hashes with correct values' do
+        hashes = Look.as_hashes(include: {user: {procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}}}})
+        Look.includes(:user).zip(hashes) do |look, hash|
+          expect(look.attributes).to eq(hash.except('user'))
+          expect(look.user.attributes).to eq(hash['user'].except('full_name'))
+          expect(hash['user']['full_name']).to eq("#{look.user.first_name} #{look.user.last_name}")
+        end
       end
     end
 
-    it 'returns hashes with correct type of values' do
-      @looks = create_list :look, 3
-      hashes = Look.as_hashes(include: {user: {only: [:id, :first_name, :created_at]}})
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all include({
-        'user' => {
-          'id' => a_kind_of(Integer),
-          'first_name' => a_kind_of(String),
-          'created_at' => a_kind_of(Time)
-        }
-      })
-    end
+    describe 'with sql alias' do
+      before :each do
+        @looks = create_list :look, 3
+      end
 
+      it 'does not instantiate models' do
+        expect(Look).to_not receive(:instantiate)
+        expect(User).to_not receive(:instantiate)
+        expect(Look.as_hashes(include: {user: {only: [:id, "first_name || ' ' || last_name as full_name"]}}).size).to eq(3)
+      end
+
+      it 'returns hashes with virtual key' do
+        hashes = Look.as_hashes(include: {user: {only: [:id, "first_name || ' ' || last_name as full_name"]}})
+        expect(hashes).to all have_keys('id', 'name', 'description', 'user', 'created_at', 'updated_at')
+        expect(hashes.map{|h| h['user']}).to all have_keys('id', 'full_name')
+      end
+
+      it 'returns hashes with correct values' do
+        hashes = Look.as_hashes(include: {user: {only: [:id, "first_name || ' ' || last_name as full_name"]}})
+        Look.includes(:user).zip(hashes) do |look, hash|
+          expect(look.attributes).to eq(hash.except('user'))
+          expect(look.user.attributes.slice('id', 'full_name')).to eq(hash['user'].except('full_name'))
+          expect(hash['user']['full_name']).to eq("#{look.user.first_name} #{look.user.last_name}")
+        end
+      end
+    end
   end
 
   describe 'as_structs' do
 
-    it 'loads all fields with empty options' do
-      @looks = create_list :look, 3
-      expect(Look).to_not receive(:instantiate)
-      expect(User).to_not receive(:instantiate)
-      structs = Look.as_structs(include: :user)
-      expect(structs.size).to eq(3)
-      expect(structs).to all a_kind_of(Struct)
-      expect(structs.map(&:to_h)).to all have_keys(*%i[id name user_id description created_at updated_at])
-      expect(structs.map(&:user)).to all a_kind_of(Struct)
-      expect(structs.map(&:user).map(&:to_h)).to all include({
-        id: a_kind_of(Integer),
-        first_name: a_kind_of(String),
-        last_name: a_kind_of(String),
-        email: a_kind_of(String),
-        created_at: a_kind_of(Time),
-        updated_at: a_kind_of(Time)
-      })
-    end
+    describe 'without options' do
+      before :each do
+        @looks = create_list :look, 3
+      end
 
-    it 'loads association correctly' do
-      @looks = create_list :look, 3
-      structs = Look.as_structs(include: :user)
-      @looks.zip(structs) do |look, struct|
-        expect(look.id).to eq(struct.id)
-        expect(look.user_id).to eq(struct.user.id)
+      it 'does not instantiate models' do
+        expect(Look).to_not receive(:instantiate)
+        expect(User).to_not receive(:instantiate)
+        expect(Look.as_structs(include: :user).size).to eq(3)
+      end
+
+      it 'returns structs with all keys' do
+        structs = Look.as_structs(include: :user)
+        expect(structs.map(&:to_h)).to all have_keys(*%i[id name description user created_at updated_at])
+        expect(structs.map{|s| s.user.to_h}).to all have_keys(*%i[id first_name last_name email created_at updated_at])
+      end
+
+      it 'returns structs with correct values' do
+        Look.includes(:user).all.zip(Look.as_structs(include: :user)) do |look, struct|
+          expect(look.attributes.symbolize_keys).to eq(struct.to_h.except(:user))
+          expect(look.user.attributes.symbolize_keys).to eq(struct.user.to_h)
+        end
       end
     end
 
-    it 'loads only selected fields' do
-      @looks = create_list :look, 3
-      structs = Look.as_structs(only: %i[id name], include: {user: {only: %i[id first_name created_at]}})
-      expect(structs.size).to eq(3)
-      expect(structs.map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        name: a_kind_of(String),
-        user_id: a_kind_of(Integer),
-        user: a_kind_of(Struct)
-      })
-      expect(structs.map(&:user).map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        first_name: a_kind_of(String),
-        created_at: a_kind_of(Time)
-      })
-    end
+    describe 'with only option' do
+      before :each do
+        @looks = create_list :look, 3
+      end
 
-    it 'loads without excepted fields' do
-      @looks = create_list :look, 3
-      structs = Look.as_structs(except: %i[created_at updated_at], include: {user: {except: %i[email created_at updated_at]}})
-      expect(structs.size).to eq(3)
-      expect(structs.map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        name: a_kind_of(String),
-        user_id: a_kind_of(Integer),
-        description: a_kind_of(String),
-        user: a_kind_of(Struct)
-      })
-      expect(structs.map(&:user).map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        first_name: a_kind_of(String),
-        last_name: a_kind_of(String)
-      })
-    end
+      it 'does not instantiate models' do
+        expect(Look).to_not receive(:instantiate)
+        expect(User).to_not receive(:instantiate)
+        expect(Look.as_structs(include: {user: {only: %i[first_name last_name]}}).size).to eq(3)
+      end
 
-    it 'applies procs' do
-      @looks = create_list :look, 3
-      structs = Look.as_structs(include: {
-        user: {procs: {full_name: ->(s){ s.to_h.values_at(:first_name, :last_name).join(' ') }}}
-      })
-      structs.each do |struct|
-        expect(struct.user.full_name).to eq struct.user.to_h.values_at(:first_name, :last_name).join(' ')
+      it 'returns structs with selected keys' do
+        structs = Look.as_structs(include: {user: {only: %i[id first_name]}})
+        expect(structs.map(&:to_h)).to all have_keys(*%i[id name description user created_at updated_at])
+        expect(structs.map{|s| s.user.to_h}).to all match({
+          id: a_kind_of(Integer),
+          first_name: a_kind_of(String)
+        })
+      end
+
+      it 'returns structs with correct values' do
+        structs = Look.as_structs(include: {user: {only: %i[id first_name created_at]}})
+        Look.includes(:user).all.zip(structs) do |look, struct|
+          expect(look.attributes.symbolize_keys).to eq(struct.to_h.except(:user))
+          expect(look.user.attributes.slice(*%w[id first_name created_at]).symbolize_keys).to eq(struct.user.to_h)
+        end
       end
     end
 
-    it 'select field with sql alias' do
-      @looks = create_list :look, 3
-      structs = Look.as_structs(include: {user: {only: [:id, :first_name, :last_name, "first_name || ' ' || last_name as full_name"]}})
-      expect(structs.size).to eq(3)
-      structs.each do |struct|
-        expect(struct.user.full_name).to eq("#{struct.user.to_h.values_at(:first_name, :last_name).join(' ')}")
+    describe 'with except option' do
+      before :each do
+        @looks = create_list :look, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(Look).to_not receive(:instantiate)
+        expect(Look.as_structs(include: {user: {except: %i[first_name last_name]}}).size).to eq(3)
+      end
+
+      it 'returns structs without excepted keys' do
+        structs = Look.as_structs(include: {user: {except: %i[email created_at updated_at]}})
+        expect(structs.map(&:to_h)).to all have_keys(*%i[id name description user created_at updated_at])
+        expect(structs.map{|s| s.user.to_h}).to all match({
+          id: a_kind_of(Integer),
+          first_name: a_kind_of(String),
+          last_name: a_kind_of(String)
+        })
+      end
+
+      it 'returns structs with correct values' do
+        structs = Look.as_structs(include: {user: {except: %i[first_name last_name updated_at]}})
+        Look.includes(:user).all.zip(structs) do |look, struct|
+          expect(look.attributes.symbolize_keys).to eq(struct.to_h.except(:user))
+          expect(look.user.attributes.slice(*%w[id email created_at]).symbolize_keys).to eq(struct.user.to_h)
+        end
       end
     end
 
-    it 'returns structs with correct type of values' do
-      @looks = create_list :look, 3
-      structs = Look.as_structs(include: {user: {only: [:id, :first_name, :created_at]}})
-      expect(structs.size).to eq(3)
-      expect(structs.map(&:user).map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        first_name: a_kind_of(String),
-        created_at: a_kind_of(Time)
-      })
+    describe 'with proc option' do
+      before :each do
+        @looks = create_list :look, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(Look).to_not receive(:instantiate)
+        expect(Look.as_structs(include: {user: {procs: {full_name: ->(s){ "#{s.first_name} #{s.last_name}"}}}}).size).to eq(3)
+      end
+
+      it 'returns structs with virtual key' do
+        structs = Look.as_structs(include: {user: {procs: {full_name: ->(s){ "#{s.first_name} #{s.last_name}"}}}})
+        expect(structs.map(&:to_h)).to all have_keys(*%i[id name description user created_at updated_at])
+        expect(structs.map{|s| s.user.to_h}).to all have_keys(*%i[id first_name last_name full_name])
+      end
+
+      it 'returns structs with correct values' do
+        structs = Look.as_structs(include: {user: {procs: {full_name: ->(s){ "#{s.first_name} #{s.last_name}"}}}})
+        Look.includes(:user).zip(structs) do |look, struct|
+          expect(look.attributes.symbolize_keys).to eq(struct.to_h.except(:user))
+          expect(look.user.attributes.symbolize_keys).to eq(struct.user.to_h.except(:full_name))
+          expect(struct.user.full_name).to eq("#{look.user.first_name} #{look.user.last_name}")
+        end
+      end
     end
 
+    describe 'with sql alias' do
+      before :each do
+        @looks = create_list :look, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(Look).to_not receive(:instantiate)
+        expect(User).to_not receive(:instantiate)
+        expect(Look.as_structs(include: {user: {only: [:id, "first_name || ' ' || last_name as full_name"]}}).size).to eq(3)
+      end
+
+      it 'returns structs with virtual key' do
+        structs = Look.as_structs(include: {user: {only: [:id, "first_name || ' ' || last_name as full_name"]}})
+        expect(structs.map(&:to_h)).to all have_keys(*%i[id name description user created_at updated_at])
+        expect(structs.map{|s| s.user.to_h}).to all have_only_keys(*%i[id full_name])
+      end
+
+      it 'returns structs with correct values' do
+        structs = Look.as_structs(include: {user: {only: [:id, "first_name || ' ' || last_name as full_name"]}})
+        Look.includes(:user).zip(structs) do |look, struct|
+          expect(look.attributes.symbolize_keys).to eq(struct.to_h.except(:user))
+          expect(look.user.attributes.slice('id', 'full_name').symbolize_keys).to eq(struct.user.to_h.except(:full_name))
+          expect(struct.user.full_name).to eq("#{look.user.first_name} #{look.user.last_name}")
+        end
+      end
+    end
   end
+
 
 end

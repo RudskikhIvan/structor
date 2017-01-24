@@ -6,72 +6,127 @@ describe 'Without Associations' do
     it('User class respond_to as_hashes'){ expect(User).to respond_to(:as_hashes) }
     it('User scope respond_to as_hashes'){ expect(User.all).to respond_to(:as_hashes) }
 
-    it 'loads all fields with empty options' do
-      @users = create_list :user, 3
-      expect(User).to_not receive(:instantiate)
-      hashes = User.as_hashes
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all have_keys('id', 'first_name', 'last_name', 'email', 'created_at', 'updated_at')
-    end
+    describe 'without options' do
+      before :each do
+        @users = create_list :user, 3
+      end
 
-    it 'loads only selected fields' do
-      @users = create_list :user, 3
-      expect(User).to_not receive(:instantiate)
-      hashes = User.as_hashes(only: %i[id first_name])
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all match({
-        'id' => a_kind_of(Integer),
-        'first_name' => a_kind_of(String)
-      })
-    end
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_hashes.size).to eq(3)
+      end
 
-    it 'loads without excepted fields' do
-      @users = create_list :user, 3
-      hashes = User.as_hashes(except: %i[created_at updated_at email])
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all match({
-        'id' => a_kind_of(Integer),
-        'first_name' => a_kind_of(String),
-        'last_name' => a_kind_of(String)
-      })
-    end
+      it 'returns hashes with all keys' do
+        expect(User.as_hashes).to all have_keys('id', 'first_name', 'last_name', 'email', 'created_at', 'updated_at')
+      end
 
-    it 'applies procs' do
-      @users = create_list :user, 3
-      expect(User).to_not receive(:instantiate)
-      hashes = User.as_hashes(only: %i[id first_name last_name],
-                              procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}})
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all have_key('full_name')
-      hashes.each do |hash|
-        expect(hash['full_name']).to eq("#{hash['first_name']} #{hash['last_name']}")
+      it 'returns hashes with correct values' do
+        User.all.zip(User.as_hashes) do |user, hash|
+          expect(user.attributes).to eq(hash)
+        end
       end
     end
 
-    it 'select field with sql alias' do
-      @users = create_list :user, 3
-      hashes = User.as_hashes(only: [:id, :first_name, :last_name, "first_name || ' ' || last_name as full_name"])
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all a_kind_of(Hash)
-      expect(hashes).to all have_key('full_name')
-      hashes.each do |hash|
-        expect(hash['full_name']).to eq("#{hash['first_name']} #{hash['last_name']}")
+    describe 'with only option' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_hashes(only: %i[first_name last_name]).size).to eq(3)
+      end
+
+      it 'returns hashes with selected keys' do
+        expect(User.as_hashes(only: %i[id first_name])).to all match({
+          'id' => a_kind_of(Integer),
+          'first_name' => a_kind_of(String)
+        })
+      end
+
+      it 'returns hashes with correct values' do
+        User.all.zip(User.as_hashes(only: %i[id first_name created_at])) do |user, hash|
+          expect(user.attributes.slice(*%w[id first_name created_at])).to eq(hash)
+        end
       end
     end
 
-    it 'returns hashes with correct type of values' do
-      @users = create_list :user, 3
-      hashes = User.as_hashes(only: [:id, :first_name, :created_at])
-      expect(hashes.size).to eq(3)
-      expect(hashes).to all match({
-        'id' => a_kind_of(Integer),
-        'first_name' => a_kind_of(String),
-        'created_at' => a_kind_of(Time)
-      })
+    describe 'with except option' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_hashes(except: %i[first_name last_name]).size).to eq(3)
+      end
+
+      it 'returns hashes without excepted keys' do
+        expect(User.as_hashes(except: %i[email created_at updated_at])).to all match({
+           'id' => a_kind_of(Integer),
+           'first_name' => a_kind_of(String),
+           'last_name' => a_kind_of(String)
+        })
+      end
+
+      it 'returns hashes with correct values' do
+        User.all.zip(User.as_hashes(except: %i[first_name last_name updated_at])) do |user, hash|
+          expect(user.attributes.slice(*%w[id email created_at])).to eq(hash)
+        end
+      end
+    end
+
+    describe 'with proc option' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_hashes(procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}}).size).to eq(3)
+      end
+
+      it 'returns hashes virtual key' do
+        expect(User.as_hashes(except: %i[email created_at updated_at],
+                              procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}})).to all match({
+          'id' => a_kind_of(Integer),
+          'first_name' => a_kind_of(String),
+          'last_name' => a_kind_of(String),
+          'full_name' => a_kind_of(String)
+        })
+      end
+
+      it 'returns hashes with correct values' do
+        User.all.zip(User.as_hashes(procs: {full_name: ->(h){ "#{h['first_name']} #{h['last_name']}"}})) do |user, hash|
+          expect(user.attributes).to eq(hash.except('full_name'))
+          expect(hash['full_name']).to eq("#{user.first_name} #{user.last_name}")
+        end
+      end
+    end
+
+    describe 'with sql alias' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_hashes(only: [:id, "first_name || ' ' || last_name as full_name"]).size).to eq(3)
+      end
+
+      it 'returns hashes without excepted keys' do
+        expect(User.as_hashes(only: [:id, "first_name || ' ' || last_name as full_name"])).to all match({
+          'id' => a_kind_of(Integer),
+          'full_name' => a_kind_of(String)
+        })
+      end
+
+      it 'returns hashes with correct values' do
+        User.all.zip(User.as_hashes(only: [:id, "first_name || ' ' || last_name as full_name"])) do |user, hash|
+          expect(user.id).to eq(hash['id'])
+          expect(hash['full_name']).to eq("#{user.first_name} #{user.last_name}")
+        end
+      end
     end
   end
 
@@ -80,65 +135,125 @@ describe 'Without Associations' do
     it('User class respond_to as_structs'){ expect(User).to respond_to(:as_structs) }
     it('User scope respond_to as_structs'){ expect(User.all).to respond_to(:as_structs) }
 
-    it 'loads all fields with empty options' do
-      @users = create_list :user, 3
-      expect(User).to_not receive(:instantiate)
-      structs = User.as_structs
-      expect(structs.size).to eq(3)
-      expect(structs).to all a_kind_of(Struct)
-      expect(structs).to all respond_to('id')
-      expect(structs).to all respond_to('first_name')
-      expect(structs).to all respond_to('last_name')
-      expect(structs).to all respond_to('email')
-      expect(structs).to all respond_to('created_at')
-      expect(structs).to all respond_to('updated_at')
-    end
+    describe 'without options' do
+      before :each do
+        @users = create_list :user, 3
+      end
 
-    it 'loads only selected fields' do
-      @users = create_list :user, 3
-      structs = User.as_structs(only: %i[id first_name])
-      expect(structs.size).to eq(3)
-      expect(structs).to all a_kind_of(Struct)
-      expect(structs.map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        first_name: a_kind_of(String)
-      })
-    end
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_structs.size).to eq(3)
+      end
 
-    it 'loads without excepted fields' do
-      @users = create_list :user, 3
-      structs = User.as_structs(except: %i[created_at updated_at email])
-      expect(structs.size).to eq(3)
-      expect(structs).to all a_kind_of(Struct)
-      expect(structs.map(&:to_h)).to all match({
-        id: a_kind_of(Integer),
-        first_name: a_kind_of(String),
-        last_name: a_kind_of(String)
-      })
-    end
+      it 'returns structs with all keys' do
+        expect(User.as_structs.map(&:to_h)).to all have_keys(*%i[id first_name last_name email created_at updated_at])
+      end
 
-    it 'applies procs' do
-      @users = create_list :user, 3
-      expect(User).to_not receive(:instantiate)
-      structs = User.as_structs(only: %i[id first_name last_name],
-                              procs: {full_name: ->(st){ "#{st.first_name} #{st.last_name}"}})
-      expect(structs).to all a_kind_of(Struct)
-      expect(structs).to all respond_to('full_name')
-      structs.each do |st|
-        expect(st.full_name).to eq("#{st.first_name} #{st.last_name}")
+      it 'returns structs with correct values' do
+        User.all.zip(User.as_structs) do |user, struct|
+          expect(user.attributes.symbolize_keys).to eq(struct.to_h)
+        end
       end
     end
 
-    it 'select field with sql alias' do
-      @users = create_list :user, 3
-      expect(User).to_not receive(:instantiate)
-      structs = User.as_structs(only: [:id, :first_name, :last_name, "first_name || ' ' || last_name as full_name"])
-      expect(structs).to all a_kind_of(Struct)
-      expect(structs).to all respond_to('full_name')
-      structs.each do |st|
-        expect(st.full_name).to eq("#{st.first_name} #{st.last_name}")
+    describe 'with only option' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_structs(only: %i[first_name last_name]).size).to eq(3)
+      end
+
+      it 'returns structs with selected keys' do
+        expect(User.as_structs(only: %i[id first_name]).map(&:to_h)).to all match({
+          id: a_kind_of(Integer),
+          first_name: a_kind_of(String)
+        })
+      end
+
+      it 'returns structs with correct values' do
+        User.all.zip(User.as_structs(only: %i[id first_name created_at])) do |user, struct|
+          expect(user.attributes.slice(*%w[id first_name created_at])).to eq(struct.to_h.stringify_keys)
+        end
       end
     end
+
+    describe 'with except option' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_structs(except: %i[first_name last_name]).size).to eq(3)
+      end
+
+      it 'returns structs without excepted keys' do
+        expect(User.as_structs(except: %i[email created_at updated_at]).map(&:to_h)).to all match({
+          id: a_kind_of(Integer),
+          first_name: a_kind_of(String),
+          last_name: a_kind_of(String)
+        })
+      end
+
+      it 'returns structs with correct values' do
+        User.all.zip(User.as_structs(except: %i[first_name last_name updated_at])) do |user, struct|
+          expect(user.attributes.slice(*%w[id email created_at])).to eq(struct.to_h.stringify_keys)
+        end
+      end
+    end
+
+    describe 'with proc option' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_structs(procs: {full_name: ->(s){ "#{s.first_name} #{s.last_name}"}}).size).to eq(3)
+      end
+
+      it 'returns structs virtual key' do
+        expect(User.as_structs(procs: {full_name: ->(s){ "#{s.first_name} #{s.last_name}"}}).map(&:to_h)).to all include({
+          full_name: a_kind_of(String)
+        })
+      end
+
+      it 'returns structs with correct values' do
+        User.all.zip(User.as_structs(procs: {full_name: ->(s){ "#{s.first_name} #{s.last_name}"}})) do |user, struct|
+          expect(user.attributes.symbolize_keys).to eq(struct.to_h.except(:full_name))
+          expect(struct.full_name).to eq("#{user.first_name} #{user.last_name}")
+        end
+      end
+    end
+
+    describe 'with sql alias' do
+      before :each do
+        @users = create_list :user, 3
+      end
+
+      it 'does not instantiate models' do
+        expect(User).to_not receive(:instantiate)
+        expect(User.as_structs(only: [:id, "first_name || ' ' || last_name as full_name"]).size).to eq(3)
+      end
+
+      it 'returns structs without excepted keys' do
+        expect(User.as_structs(only: [:id, "first_name || ' ' || last_name as full_name"]).map(&:to_h)).to all match({
+          id: a_kind_of(Integer),
+          full_name: a_kind_of(String)
+        })
+      end
+
+      it 'returns structs with correct values' do
+        User.all.zip(User.as_structs(only: [:id, "first_name || ' ' || last_name as full_name"])) do |user, struct|
+          expect(user.id).to eq(struct.id)
+          expect(struct.full_name).to eq("#{user.first_name} #{user.last_name}")
+        end
+      end
+    end
+
   end
 
 end
