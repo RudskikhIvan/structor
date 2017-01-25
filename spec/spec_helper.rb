@@ -3,6 +3,7 @@ require 'active_record'
 require 'factory_girl'
 require 'database_cleaner'
 require 'ffaker'
+require 'pry'
 require_relative '../lib/structor'
 
 ActiveRecord::Base.establish_connection(
