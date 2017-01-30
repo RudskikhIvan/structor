@@ -20,34 +20,41 @@ ActiveRecord::Schema.define do
     t.string :first_name
     t.string :last_name
     t.string :email
-    t.datetime :created_at, null: false
-    t.datetime :updated_at, null: false
+    t.timestamps
   end
 
   create_table :products do |t|
     t.string :name
     t.string :description
     t.decimal  :price, precision: 12, scale: 2, null: false
-    t.datetime :created_at, null: false
-    t.datetime :updated_at, null: false
+    t.timestamps
   end
 
   create_table :looks do |t|
     t.string   :name
     t.belongs_to :user
     t.text     :description
-    t.datetime :created_at, null: false
-    t.datetime :updated_at, null: false
+    t.timestamps
   end
 
   create_table :looks_products, force: :cascade do |t|
     t.belongs_to :look
     t.belongs_to :product
   end
+
+  create_table :addresses, force: :cascade do |t|
+    t.belongs_to :user
+    t.string :address
+    t.string :city
+    t.string :zip_code
+    t.boolean :approved, default: false
+    t.timestamps
+  end
 end
 
 class User < ActiveRecord::Base
   has_many :looks
+  has_one :address
 end
 
 class Look < ActiveRecord::Base
@@ -57,4 +64,8 @@ end
 
 class Product < ActiveRecord::Base
   has_and_belongs_to_many :looks
+end
+
+class Address < ActiveRecord::Base
+  belongs_to :user
 end

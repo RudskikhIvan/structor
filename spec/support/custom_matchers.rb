@@ -15,3 +15,12 @@ RSpec::Matchers.define :have_only_keys do |*keys|
     "have only keys: #{keys.join(', ')}"
   end
 end
+
+RSpec::Matchers.define :a_kind_of_boolean do
+  match do |actual|
+    actual == true or actual == false
+  end
+  description do
+    "be true or false"
+  end
+end
