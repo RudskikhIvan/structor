@@ -6,12 +6,12 @@ module Structor
       autoload :Association
       autoload :SingularAssociation
       autoload :CollectionAssociation
-      #autoload :ThroughAssociation
+      autoload :ThroughAssociation
 
       autoload :HasMany
-      #autoload :HasManyThrough
+      autoload :HasManyThrough
       autoload :HasOne
-      #autoload :HasOneThrough
+      autoload :HasOneThrough
       autoload :BelongsTo
     end
 
@@ -31,6 +31,10 @@ module Structor
           preloaders_on association
         }
       end
+    end
+
+    def self.preload(klass, associations, owners)
+      self.new(klass, associations, owners).preload
     end
 
     private
@@ -56,7 +60,7 @@ module Structor
     end
 
     def preloaders_for_one(association, options = {})
-      reflection = klass.reflect_on_association(association)
+      reflection = klass._reflect_on_association(association)
       preloader = preloader_for(reflection).new(reflection, owners, options)
       preloader.run(self)
     end

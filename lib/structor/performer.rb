@@ -41,7 +41,7 @@ module Structor
       if options[:include].present? and column_names.present?
         Array.wrap(options[:include]).each do |accotiation|
           key = accotiation.is_a?(Hash) ? accotiation.keys.first : accotiation
-          reflection = klass.reflect_on_association(key.to_sym)
+          reflection = klass._reflect_on_association(key.to_sym)
           if reflection.macro == :belongs_to
             column_names << reflection.foreign_key
           else
@@ -100,7 +100,7 @@ module Structor
     end
 
     def apply_includes(items)
-      Preloader.new(klass, options[:include], items).preload
+      Preloader.preload(klass, options[:include], items)
     end
   end
 end

@@ -2,13 +2,12 @@ module Structor
   class Preloader
     class Association
 
-      attr_reader :owners, :reflection, :result, :options
+      attr_reader :owners, :reflection, :options
       delegate :klass, to: :reflection
 
       def initialize(reflection, owners, options = {})
         @owners        = owners
         @reflection    = reflection
-        @result        = result
         @options       = options
       end
 
@@ -52,14 +51,7 @@ module Structor
       end
 
       def owner_keys
-        unless defined?(@owner_keys)
-          @owner_keys = owners.map do |owner|
-            owner[owner_key_name]
-          end
-          @owner_keys.uniq!
-          @owner_keys.compact!
-        end
-        @owner_keys
+        @owner_keys ||= owners.map{|owner| owner[owner_key_name]}.tap(&:uniq!).tap(&:compact!)
       end
 
       def owners_by_key
