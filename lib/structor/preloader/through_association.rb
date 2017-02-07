@@ -65,17 +65,16 @@ module Structor
         # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
         # Make several smaller queries if necessary or make one query if the adapter supports it
         slices = middle_keys.each_slice(klass.connection.in_clause_length || middle_keys.size)
-        @preloaded_records = slices.flat_map do |slice|
-          records_for(slice)
-        end
-        middle_group = middle_records.each_with_object({}) do |record, st|
-          (st[convert_key(record[middle_key_name])] ||= []) << convert_key(record[middle_owner_key_name])
-        end
-        @preloaded_records.each_with_object({}) do |record, st|
-          next unless (owner_ids = middle_group[record[convert_key(association_key_name)]])
-          owner_ids.each do |owner_id|
-            (st[owner_id] ||= []) << record
+        @preloaded_records = {}
+        slices.each do |slice|
+          records_for(slice).each do |record|
+            @preloaded_records[convert_key(record[association_key_name])] = record
           end
+        end
+        return {} if @preloaded_records.blank?
+        middle_records.each_with_object({}) do |record, st|
+          association_record = @preloaded_records[convert_key(record[middle_key_name])]
+          (st[convert_key(record[middle_owner_key_name])] ||= []) << association_record if association_record
         end
       end
 

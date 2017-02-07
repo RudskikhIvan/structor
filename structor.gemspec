@@ -19,6 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency "activerecord", "~> 5.0.0"
 
   s.add_development_dependency "sqlite3"
+  s.add_development_dependency "benchmark-memory"
   s.add_development_dependency "rspec", "~> 3.5"
   s.add_development_dependency "factory_girl"
   s.add_development_dependency "ffaker"
