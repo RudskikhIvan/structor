@@ -37,24 +37,31 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
-  create_table :looks_products, force: :cascade do |t|
+  create_table :looks_products do |t|
     t.belongs_to :look
     t.belongs_to :product
   end
 
-  create_table :addresses, force: :cascade do |t|
+  create_table :addresses do |t|
     t.belongs_to :user
     t.string :address
-    t.string :city
+    t.integer :city_id
     t.string :zip_code
     t.boolean :approved, default: false
     t.timestamps
+  end
+
+  create_table :cities do |t|
+    t.string :name
+    t.decimal :lat, precision: 10, scale: 7
+    t.decimal :lng, precision: 10, scale: 7
   end
 end
 
 class User < ActiveRecord::Base
   has_many :looks
   has_one :address
+  has_one :city, through: :address
 end
 
 class Look < ActiveRecord::Base
@@ -66,6 +73,11 @@ class Product < ActiveRecord::Base
   has_and_belongs_to_many :looks
 end
 
+class City < ActiveRecord::Base
+
+end
+
 class Address < ActiveRecord::Base
   belongs_to :user
+  belongs_to :city
 end

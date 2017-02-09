@@ -140,6 +140,28 @@ describe 'With the belongs to associtation' do
         end
       end
     end
+
+    describe 'empty associations' do
+      before :each do
+        create_list :look, 3, user: nil
+      end
+
+      it 'returns nil when record does not exist' do
+        expect(Look.as_hashes(include: :user)).to all include('user' => nil)
+      end
+
+      it 'returns nil when record does not exist with only option' do
+        expect(Look.as_hashes(include: {user: {only: %i[id first_name]}})).to all include('user' => nil)
+      end
+
+      it 'returns nil when record does not exist with except option' do
+        expect(Look.as_hashes(include: {user: {except: %i[created_at updated_at]}})).to all include('user' => nil)
+      end
+
+      it 'returns nil when record does not exist with procs option' do
+        expect(Look.as_hashes(include: {user: {procs: {'some_attr' => ->(h){ 'string' }}}})).to all include('user' => nil)
+      end
+    end
   end
 
   describe 'as_structs' do
@@ -279,6 +301,28 @@ describe 'With the belongs to associtation' do
           expect(look.user.attributes.slice('id', 'full_name').symbolize_keys).to eq(struct.user.to_h.except(:full_name))
           expect(struct.user.full_name).to eq("#{look.user.first_name} #{look.user.last_name}")
         end
+      end
+    end
+
+    describe 'empty associations' do
+      before :each do
+        create_list(:look, 3, user: nil)
+      end
+
+      it 'returns nil when when record does not exist' do
+        expect(Look.as_structs(include: :user).map(&:to_h)).to all include(user: nil)
+      end
+
+      it 'returns nil when when record does not exist with only option' do
+        expect(Look.as_structs(include: {user: {only: %i[id first_name]}}).map(&:to_h)).to all include(user: nil)
+      end
+
+      it 'returns nil when when record does not exist with except option' do
+        expect(Look.as_structs(include: {user: {except: %i[created_at updated_at]}}).map(&:to_h)).to all include(user: nil)
+      end
+
+      it 'returns nil when when record does not exist with procs option' do
+        expect(Look.as_structs(include: {user: {procs: {'some_attr' => ->(h){ 'string' }}}}).map(&:to_h)).to all include(user: nil)
       end
     end
   end
