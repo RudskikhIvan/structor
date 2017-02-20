@@ -9,12 +9,12 @@ module Structor
       @options = options
     end
 
-    def as_hashes
-      result_to_hashes( load_result )
+    def convert_to
+      options[:convert_to] || :hash
     end
 
-    def as_structs
-      result_to_structs( load_result )
+    def load
+      options[:convert_to] == :hash ? result_to_hashes( load_result ) : result_to_structs( load_result )
     end
 
     private
@@ -100,7 +100,8 @@ module Structor
     end
 
     def apply_includes(items)
-      Preloader.preload(klass, options[:include], items)
+      Preloader.preload(options[:include], items, { klass: klass, convert_to: convert_to })
     end
+
   end
 end

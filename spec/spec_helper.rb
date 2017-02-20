@@ -62,6 +62,7 @@ class User < ActiveRecord::Base
   has_many :looks
   has_one :address
   has_one :city, through: :address
+  has_many :products, through: :looks
 end
 
 class Look < ActiveRecord::Base

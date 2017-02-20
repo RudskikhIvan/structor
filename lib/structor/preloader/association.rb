@@ -28,7 +28,7 @@ module Structor
       end
 
       def records_for(ids)
-        method = owners.first.is_a?(Struct) ? :as_structs : :as_hashes
+        method = options[:convert_to] == :struct ? :as_structs : :as_hashes
         scope.where(association_key_name => ids).send(method, options.merge(required_columns: required_columns))
       end
 

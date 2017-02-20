@@ -20,14 +20,6 @@ module Structor
         reflection.source_reflection
       end
 
-      def middle_records
-        @middle_records ||= through_scope
-          .where(middle_owner_key_name => owner_keys)
-          .where.not(middle_key_name => nil)
-          .distinct
-          .as_hashes(only: [through_reflection.foreign_key.to_sym, middle_key_name.to_sym])
-      end
-
       def owner_key_name
         through_reflection.active_record_primary_key
       end
@@ -44,10 +36,6 @@ module Structor
         source_reflection.foreign_key
       end
 
-      def middle_keys
-        @middle_keys ||= middle_records.map{|middle| middle[middle_key_name]}.tap(&:uniq!).tap(&:compact!)
-      end
-
       def middle_key_type
         through_reflection.klass.type_for_attribute(middle_key_name).type
       end
@@ -60,27 +48,45 @@ module Structor
         [association_key_name]
       end
 
+      def prepared_owners
+        @prepared_owners ||= owners.map{|owner| {owner_key_name => owner[owner_key_name]}}
+      end
+
       def load_records
-        return {} if middle_keys.empty?
-        # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
-        # Make several smaller queries if necessary or make one query if the adapter supports it
-        slices = middle_keys.each_slice(klass.connection.in_clause_length || middle_keys.size)
-        @preloaded_records = {}
-        slices.each do |slice|
-          records_for(slice).each do |record|
-            @preloaded_records[convert_key(record[association_key_name])] = record
-          end
+        return {} if owner_keys.empty?
+
+        Preloader.preload({
+            through_reflection.name => {
+              only: through_reflection.klass.primary_key,
+              include: options.present? ? {source_reflection.name => options} : source_reflection.name
+            }
+          },
+          prepared_owners,
+          {klass: through_reflection.active_record, convert_to: options[:convert_to]}
+        )
+
+        prepared_owners.each_with_object({}) do |p_owner, st|
+          st[p_owner[owner_key_name]] = Array.wrap(p_owner[through_reflection.name.to_s]).flat_map{|middle| middle[source_reflection.name.to_s]}.uniq.compact
         end
-        return {} if @preloaded_records.blank?
-        middle_records.each_with_object({}) do |record, st|
-          association_record = @preloaded_records[convert_key(record[middle_key_name])]
-          (st[convert_key(record[middle_owner_key_name])] ||= []) << association_record if association_record
-        end
+
+        # # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
+        # # Make several smaller queries if necessary or make one query if the adapter supports it
+        # slices = middle_keys.each_slice(klass.connection.in_clause_length || middle_keys.size)
+        # @preloaded_records = {}
+        # slices.each do |slice|
+        #   records_for(slice).each do |record|
+        #     @preloaded_records[convert_key(record[association_key_name])] = record
+        #   end
+        # end
+        # return {} if @preloaded_records.blank?
+        # middle_records.each_with_object({}) do |record, st|
+        #   association_record = @preloaded_records[convert_key(record[middle_key_name])]
+        #   (st[convert_key(record[middle_owner_key_name])] ||= []) << association_record if association_record
+        # end
       end
 
       def key_conversion_required?
-        @key_conversion_required ||=
-            [association_key_type, owner_key_type, middle_owner_key_type, middle_key_type].uniq!.size > 1
+        false
       end
 
       #   through_records = owners.map do |owner|

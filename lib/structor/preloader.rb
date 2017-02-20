@@ -15,12 +15,16 @@ module Structor
       autoload :BelongsTo
     end
 
-    attr_reader :owners, :associations, :klass
+    attr_reader :owners, :associations, :options
 
-    def initialize(klass, associations, owners)
+    def initialize(associations, owners, options = {})
       @owners =  Array.wrap(owners).compact.uniq
       @associations = Array.wrap(associations)
-      @klass = klass
+      @options = options
+    end
+
+    def klass
+      options[:klass]
     end
 
     def preload
@@ -61,7 +65,7 @@ module Structor
 
     def preloaders_for_one(association, options = {})
       reflection = klass._reflect_on_association(association)
-      preloader = preloader_for(reflection).new(reflection, owners, options)
+      preloader = preloader_for(reflection).new(reflection, owners, options.merge(self.options.slice(:convert_to)))
       preloader.run(self)
     end
 

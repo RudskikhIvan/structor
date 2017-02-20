@@ -8,11 +8,11 @@ module Structor
 
   module ActiveRecordScopeExtension
     def as_hashes(options = {})
-      Structor::Performer.new(self, options).as_hashes
+      Structor::Performer.new(self, {convert_to: :hash}.merge(options)).load
     end
 
     def as_structs(options = {})
-      Structor::Performer.new(self, options).as_structs
+      Structor::Performer.new(self, {convert_to: :struct}.merge(options)).load
     end
   end
 end
