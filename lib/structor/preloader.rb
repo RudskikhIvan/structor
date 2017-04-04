@@ -37,8 +37,8 @@ module Structor
       end
     end
 
-    def self.preload(klass, associations, owners)
-      self.new(klass, associations, owners).preload
+    def self.preload(associations, owners, options = {})
+      self.new(associations, owners, options).preload
     end
 
     private
@@ -65,8 +65,17 @@ module Structor
 
     def preloaders_for_one(association, options = {})
       reflection = klass._reflect_on_association(association)
-      preloader = preloader_for(reflection).new(reflection, owners, options.merge(self.options.slice(:convert_to)))
-      preloader.run(self)
+      if reflection.options[:polymorphic]
+        owners.group_by{|owner| owner[reflection.foreign_type]}.each do |type, owners|
+          opts = type.present? ? (options[type.split('::').last.downcase.to_sym] || {}) : {}
+          opts.merge!(klass: type.presence && type.constantize, convert_to: self.options[:convert_to])
+          preloader = preloader_for(reflection).new(reflection, owners, opts)
+          preloader.run(self)
+        end
+      else
+        preloader = preloader_for(reflection).new(reflection, owners, options.merge(self.options.slice(:convert_to)))
+        preloader.run(self)
+      end
     end
 
     def preloader_for(reflection)

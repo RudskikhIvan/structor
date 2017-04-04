@@ -16,6 +16,15 @@ RSpec::Matchers.define :have_only_keys do |*keys|
   end
 end
 
+RSpec::Matchers.define :respond_to_all do |*keys|
+  match do |actual|
+    keys.all?{|k| actual.respond_to?(k)}
+  end
+  description do
+    "respond to all: #{keys.join(', ')}"
+  end
+end
+
 RSpec::Matchers.define :a_kind_of_boolean do
   match do |actual|
     actual == true or actual == false

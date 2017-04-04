@@ -3,12 +3,16 @@ module Structor
     class Association
 
       attr_reader :owners, :reflection, :options
-      delegate :klass, to: :reflection
+      delegate to: :reflection
 
       def initialize(reflection, owners, options = {})
         @owners        = owners
         @reflection    = reflection
         @options       = options
+      end
+
+      def klass
+        options[:klass] || reflection.klass
       end
 
       def run(preloader)
@@ -43,10 +47,18 @@ module Structor
 
       private
 
+      def model
+        reflection.active_record
+      end
+
+      def reflection_options
+        reflection.options
+      end
+
       def associated_records_by_owner(preloader)
         records = load_records
         owners.each_with_object({}) do |owner, result|
-          result[owner] = records[convert_key(owner[owner_key_name])] || []
+          result[owner] = records.present? ? (records[convert_key(owner[owner_key_name])] || []) : []
         end
       end
 
@@ -88,8 +100,37 @@ module Structor
         end
       end
 
+      def reflection_scope
+        @reflection_scope ||= reflection.scope_for(klass)
+      end
+
       def build_scope
-        klass.default_scoped.merge( reflection.scope_for(klass) )
+        scope = klass.unscoped
+
+        values = reflection_scope.values
+
+        scope.where_clause = reflection_scope.where_clause
+        scope.references_values = Array(values[:references])
+        scope.joins!(reflection_scope.joins_values)
+
+        if order_values = values[:order]
+          scope.order!(order_values)
+        end
+
+        if values[:reordering]
+          scope.reordering_value = true
+        end
+
+        if values[:readonly]
+          scope.readonly!
+        end
+
+        if reflection_options[:as]
+          scope.where!(klass.table_name => { reflection.type => model.base_class.sti_name })
+        end
+
+        scope.unscope_values = Array(values[:unscope])
+        klass.default_scoped.merge(scope)
       end
 
       def association_key_type

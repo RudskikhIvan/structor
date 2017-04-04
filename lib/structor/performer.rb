@@ -44,6 +44,7 @@ module Structor
           reflection = klass._reflect_on_association(key.to_sym)
           if reflection.macro == :belongs_to
             column_names << reflection.foreign_key
+            column_names << reflection.foreign_type if reflection.options[:polymorphic]
           else
             column_names << reflection.active_record_primary_key
           end
@@ -56,10 +57,13 @@ module Structor
     end
 
     def result_to_hashes(result)
+      types = result.columns.each_with_object({}) do |column, st|
+        st[column] = result.send(:column_type, column, klass.attribute_types)
+      end
+
       hashes = result.to_hash.each do |hash|
         hash.each do |k,v|
-          type = result.send(:column_type, k, klass.attribute_types)
-          hash[k] = type.deserialize(v)
+          hash[k] = types[k].deserialize(v)
         end
       end
       apply_includes(hashes) if options[:include].present?

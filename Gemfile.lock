@@ -49,6 +49,7 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.5.0)
     rspec-support (3.5.0)
+    ruby-prof (0.16.2)
     slop (3.6.0)
     sqlite3 (1.3.13)
     thread_safe (0.3.5)
@@ -65,8 +66,9 @@ DEPENDENCIES
   ffaker
   pry
   rspec (~> 3.5)
+  ruby-prof
   sqlite3
   structor!
 
 BUNDLED WITH
-   1.13.6
+   1.14.6

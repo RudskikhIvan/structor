@@ -56,6 +56,11 @@ ActiveRecord::Schema.define do
     t.decimal :lat, precision: 10, scale: 7
     t.decimal :lng, precision: 10, scale: 7
   end
+
+  create_table :likes do |t|
+    t.belongs_to :user
+    t.belongs_to :likeable, polymorphic: true
+  end
 end
 
 class User < ActiveRecord::Base
@@ -63,6 +68,7 @@ class User < ActiveRecord::Base
   has_one :address
   has_one :city, through: :address
   has_many :products, through: :looks
+  has_many :likes
 end
 
 class Look < ActiveRecord::Base
@@ -81,4 +87,9 @@ end
 class Address < ActiveRecord::Base
   belongs_to :user
   belongs_to :city
+end
+
+class Like < ActiveRecord::Base
+  belongs_to :user
+  belongs_to :likeable, polymorphic: true
 end
